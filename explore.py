@@ -1,26 +1,26 @@
-import pickle
-import matplotlib.pyplot as plt
-import pandas as pd
-from datetime import datetime
-from datetime import date as dt
-
-import numpy as np
-from numpy import array
-from datetime import timedelta
 import json
+import math
+import pickle
+import sqlite3
 import traceback
+from datetime import date as dt
+from datetime import datetime, timedelta
 
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
-import plotly.graph_objs as go
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-import sqlite3
+import plotly.graph_objs as go
+from dash.dependencies import Input, Output
+from numpy import array
+
+# All SQL queries happen here:
 
 conn = sqlite3.connect('Data/AlgoTrader.db')
-article_query = "SELECT * FROM ArticleTitles ORDER BY sentiment DESC;"
-main_query = "SELECT * FROM Main;"
+article_query = "SELECT strftime('%Y-%m-%d', date) AS date,sentiment,sentiment_lag,open,position FROM Sentiment ORDER BY sentiment DESC;"
+main_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,close,volume  FROM Main;"
 
 article_title_data = pd.read_sql_query(article_query, conn)
 main_price_data = pd.read_sql_query(main_query, conn)
@@ -29,16 +29,9 @@ conn.commit()
 conn.close()
 
 
-def fix_dates(dates):
-    d =datetime.strptime(dates, "%Y-%m-%d %H:%M:%S")
-    d = d.strftime("%Y-%m-%d")
-    return d
-
-
-article_title_data['date'] = article_title_data['date'].apply(fix_dates)
-main_price_data['date'] = main_price_data['date'].apply(fix_dates)
-main_price_data = main_price_data.drop(len(main_price_data)-1)
 data = pd.read_csv('SentimentData.csv')
+data = data.dropna(subset=['open'])
+main_price_data = main_price_data.dropna(subset=['volume'])
 
 sell_x = []
 sell_y = []
@@ -68,14 +61,12 @@ def plot_pos(leverage):
         price = row['open']
 
         if position != "hold":
-            plt.annotate(position, xy=(row['date'], row['open']))
 
             if position == "sell":
-                sell_x.append(row['date'])
-                sell_y.append(row['open'])
+                sell_x.append(row['Date'])
+                sell_y.append(price)
 
                 if sold == True:
-                    #pos_value = (pos_value - price)/2
                     pos_value = price
 
                 sold = True
@@ -91,11 +82,10 @@ def plot_pos(leverage):
                     pos_value = price
 
             if position == "buy":
-                buy_x.append(row['date'])
-                buy_y.append(row['open'])
+                buy_x.append(row['Date'])
+                buy_y.append(price)
 
                 if bought == True:
-                    #pos_value = (pos_value + price)/2
                     pos_value = price
 
                 bought = True
@@ -116,10 +106,10 @@ def plot_pos(leverage):
 senti = data['sentiment']
 open_delta = data['open_delta']
 
-open_price = data['open'].drop(len(data)-1)
+open_price = data['open']
 close_price = data['close']
 
-date = data['date']
+date = data['Date']
 dates = []
 
 main_dates = main_price_data['date']
@@ -130,7 +120,7 @@ for i in date:
 
 for i in main_dates:
     full_dates.append(datetime.strptime(i, "%Y-%m-%d"))
-    
+
 # plt.plot(dates,close,label='Close')
 
 pos_plt = plot_pos(1)
@@ -152,7 +142,8 @@ def create_plot(y_data, x_data=dates):
 
     return standard_plot
 
-main_price_plot = create_plot(main_price_data['open'],full_dates)
+
+main_price_plot = create_plot(main_price_data['open'], full_dates)
 open_price_plot = create_plot(open_price)
 close_price_plot = create_plot(close_price)
 open_delta_plot = create_plot(open_delta)
@@ -184,19 +175,20 @@ app.css.config.serve_locally = True
 
 app.layout = html.Div(children=[
     html.H1(children='AlgoTrader 0.0'),
-     
-     html.Div(style = {'width': '15%',  'margin-left': 'auto','margin-right': 'auto'},children = [
-            dcc.Dropdown(
-                id='Filter',
-                options=[{'label': "Month", 'value': "Month"},{'label': "Year", 'value': "Year"}] ,
-                value='Year',
-     )]),
-    html.Div(id = 'graph_div',className = 'row',children=[]),
 
-    
+    html.Div(style={'width': '15%',  'margin-left': 'auto', 'margin-right': 'auto'}, children=[
+        dcc.Dropdown(
+             id='Filter',
+             options=[{'label': "Month", 'value': "Month"},
+                      {'label': "Year", 'value': "Year"}],
+             value='Year',
+             )]),
+    html.Div(id='graph_div', className='row', children=[]),
+
+
 ])
 
-app.config['suppress_callback_exceptions']=True
+app.config['suppress_callback_exceptions'] = True
 
 @app.callback(
     Output('click-data', 'children'),
@@ -211,21 +203,25 @@ def display_hover_data(clickData):
         headings.append(html.Tr([
             html.Th("Article Title"),
             html.Th("Sentiment")
-            ])
+        ])
         )
-        for i in new_title_data.index[:3]: 
-             title_senti = html.Td(round(new_title_data['sentiment'][i],2), style = {'color':'green'})
-             title_name = html.Td(html.A(f"{new_title_data['title'][i]}",href = new_title_data['URL'][i]))
-             headings.append(html.Tr(children = [title_name,title_senti]))
-        
-        for i in new_title_data.index[len(new_title_data)-3:len(new_title_data)]: 
-             title_senti = html.Td(round(new_title_data['sentiment'][i],2))
-             title_name = html.Td(html.A(f"{new_title_data['title'][i]}",href = new_title_data['URL'][i]))
-             headings.append(html.Tr(children = [title_name,title_senti]))
+        for i in new_title_data.index[:3]:
+            title_senti = html.Td(
+                round(new_title_data['sentiment'][i], 2), style={'color': 'green'})
+            title_name = html.Td(
+                html.A(f"{new_title_data['title'][i]}", href=new_title_data['URL'][i]))
+            headings.append(html.Tr(children=[title_name, title_senti]))
+
+        for i in new_title_data.index[len(new_title_data)-3:len(new_title_data)]:
+            title_senti = html.Td(round(new_title_data['sentiment'][i], 2))
+            title_name = html.Td(
+                html.A(f"{new_title_data['title'][i]}", href=new_title_data['URL'][i]))
+            headings.append(html.Tr(children=[title_name, title_senti]))
     except:
         headings = traceback.print_exc()
 
     return headings
+
 
 @app.callback(
     Output('news_title', 'children'),
@@ -235,25 +231,18 @@ def display_hover_data(clickData):
     return None
 
 
-
-
 @app.callback(
     Output('graph_div', 'children'),
     [Input('Filter', 'value')])
 def full_graph(value):
 
     if value == "Year":
-        graph = html.Div( children = [
+        graph = html.Div(children=[
             dcc.Graph(
                 id='graph',
                 figure={
                     'data': [
                         main_price_plot,
-                        #open_price_plot,
-                        # close_price_plot,
-                        # open_delta_plot,
-                        #buy_annotations,
-                        #sell_annotations,
                     ],
                     'layout': {
                         'title': graph_title,
@@ -262,17 +251,17 @@ def full_graph(value):
                         'plot_bgcolor': 'rgba(0,0,0,0)',
                     }
                 }
-            
+
             ),
             html.H6(f"{len(mvs)} position(s) closed."),
             html.H6(f"{trades}"),
-            ]
+        ]
         )
 
     if value == "Month":
 
-            graph = [
-                html.Div(className = 'two-thirds column',children = [
+        graph = [
+            html.Div(className='two-thirds column', children=[
                 dcc.Graph(
                     id='graph',
                     figure={
@@ -286,31 +275,28 @@ def full_graph(value):
                             'clickmode': 'event+select',
                             'paper_bgcolor': 'rgba(0,0,0,0)',
                             'plot_bgcolor': 'rgba(0,0,0,0)',
-                            'legend':{'orientation':"h"},
+                            'legend': {'orientation': "h"},
                         }
                     }
-                
+
                 ),
                 html.H6(f"{len(mvs)} position(s) closed."),
                 html.H6(f"{trades}"),
             ]),
-            html.Div(className = 'four columns',children = [
-                html.H4(id = "news_title",children="Click to see news headlines!"),
-                html.Div(style = {'margin-left': 'auto','margin-right': 'auto'},children = [
-                    html.Table(className = "center",id = 'click-data', children=[
-                            html.Tr([
-                                html.Th("Article Title"),
-                                html.Th("Sentiment")
-                                ]),
-                            ])
+            html.Div(className='four columns', children=[
+                html.H4(id="news_title", children="Click to see news headlines!"),
+                html.Div(style={'margin-left': 'auto', 'margin-right': 'auto'}, children=[
+                    html.Table(className="center", id='click-data', children=[
+                        html.Tr([
+                            html.Th("Article Title"),
+                            html.Th("Sentiment")
+                        ]),
                     ])
-                ])]
-
+                ])
+            ])]
 
     return graph
 
-    
 
 if __name__ == '__main__':
-    app.run_server(debug=True,host='0.0.0.0',port=5500)
-
+    app.run_server(debug=True, host='0.0.0.0', port=5500)

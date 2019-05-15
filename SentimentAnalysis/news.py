@@ -14,7 +14,7 @@ class news_data():
         with open('Data/apiKeys.txt') as f:
             api_key = f.readlines()
 
-        api_key = api_key[1]
+        api_key = api_key[0]
 
         # with open("Data/company_name.txt") as f:
         #     comp_name = f.read()

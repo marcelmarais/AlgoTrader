@@ -1,9 +1,8 @@
 import datetime
 import pickle
+import sqlite3
 import sys
 import time
-import sqlite3
-
 from datetime import date as dt
 
 import dateutil.relativedelta
@@ -43,31 +42,21 @@ start = datetime.datetime.strptime(
     str(dt.today() - dateutil.relativedelta.relativedelta(years=1)),
     "%Y-%m-%d")
 
-start_sentiment = datetime.datetime.strptime(
-    str(dt.today() - dateutil.relativedelta.relativedelta(months=1)),
-    "%Y-%m-%d")
-
 instrument_info = pr.price_data(start, end_date=end, ticker=ticker)
 
 
-date_generated = [
+dates_generated = [
     start + datetime.timedelta(days=x) for x in range(0, (end - start).days)
 ]
 
-sentiment_date_generated = [
-    start_sentiment + datetime.timedelta(days=x) for x in range(0, (end - start_sentiment).days)
-]
-
 dates_list = []
-sentiment_dates_list = []
 
 # Dates added here:
 
-for date in date_generated:
+for date in dates_generated:
     dates_list.append(date.strftime("%m-%d-%Y"))
 
-for date in sentiment_date_generated:
-    sentiment_dates_list.append(date.strftime("%m-%d-%Y"))
+sentiment_dates_list = dates_generated[::-1][:30]
 
 # Prices added here:
 
@@ -107,7 +96,6 @@ else:
 
     print("Done!\n")
 
-
 # Sentiment and News Titles added here:
 
 senti = []
@@ -127,7 +115,7 @@ else:
     print("Fetching news sentiment.")
     tot_results = 0
 
-    for dates in sentiment_dates_list:
+    for dates in sentiment_dates_list[::-1]:
         data = news_data(from_date=str(dates))
         senti.append(data.get_avg_sentiment())
         tot_results += data.get_num_results()
@@ -163,22 +151,16 @@ else:
 news_data = news_data.astype({"Date": 'datetime64[ns]'})
 title_data = title_data.astype({"Date": 'datetime64[ns]'})
 
-
-days_to_drop = list(range(0,len(prices)-(len(news_data)-9)))#Num of weekends
-
 prices_to_merge = prices.copy()
-
-print(prices_to_merge.tail())
-prices_to_merge = prices_to_merge.drop(days_to_drop, axis = 0)
-print(prices_to_merge.head())
 
 combined = pd.merge(
     news_data,
     prices_to_merge[['date', 'close', 'open', 'volume']],
     right_on='date',
     left_on='Date',
-    how='right')
-combined = combined.drop('Date', axis=1)
+    how='left')
+
+combined = combined.drop('date', axis=1)
 
 # Price deltas added here:
 
@@ -188,7 +170,6 @@ combined['open_delta'] = combined['open'].pct_change()
 
 # Sentiment lags added here:
 
-combined['sentiment'] = combined['sentiment'].pct_change()
 combined['sentiment_lag'] = combined['sentiment'].shift(1)
 
 # Positions added here:
@@ -223,7 +204,8 @@ c.execute('DELETE FROM Sentiment')
 
 for i in combined.iterrows():
     values = i[1]
-    insert_values = (str(values[1]),values[0],values[7],values[3],
+
+    insert_values = (str(values[0]),values[1],values[7],values[3],
                     values[2],values[4],values[8])
 
     c.execute("""INSERT INTO Sentiment

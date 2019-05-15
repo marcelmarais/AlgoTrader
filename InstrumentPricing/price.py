@@ -1,5 +1,6 @@
 from datetime import date as dt
 from datetime import datetime
+import math
 
 import pandas as pd
 from iexfinance.stocks import (
@@ -25,7 +26,14 @@ class price_data():
     def get_latest_price(self):
         try:
             latest = get_historical_intraday(self.ticker, output_format='pandas')
-            latest = latest['open']['0']
+            latest = latest['open']
+            
+            for i in latest:
+                if math.isnan(i):
+                    pass
+                else:
+                    latest = i
+                    break
         except:
             print("Could not fetch latest price. (Markets are probably closed)")
             latest = 0
@@ -37,5 +45,5 @@ class price_data():
 
 
 if __name__ == "__main__":
-    test = price_data('02-04-2019', ticker="DIA")
+    test = price_data('14-05-2019', ticker="DIA")
     print(test.get_latest_price())
