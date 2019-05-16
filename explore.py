@@ -19,18 +19,19 @@ from numpy import array
 # All SQL queries happen here:
 
 conn = sqlite3.connect('Data/AlgoTrader.db')
-article_query = "SELECT strftime('%Y-%m-%d', date) AS date,sentiment,sentiment_lag,open,position FROM Sentiment ORDER BY sentiment DESC;"
-main_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,close,volume  FROM Main;"
+
+article_query = "SELECT strftime('%Y-%m-%d', date) AS date,sentiment,URL,title FROM ArticleTitles ORDER BY sentiment DESC;"
+sentiment_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,close,sentiment,position  FROM Sentiment;"
+main_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,volume  FROM Main;"
 
 article_title_data = pd.read_sql_query(article_query, conn)
 main_price_data = pd.read_sql_query(main_query, conn)
+sentiment_data = pd.read_sql_query(sentiment_query,conn)
 
 conn.commit()
 conn.close()
 
-
-data = pd.read_csv('SentimentData.csv')
-data = data.dropna(subset=['open'])
+sentiment_data = sentiment_data.dropna(subset=['open'])
 main_price_data = main_price_data.dropna(subset=['volume'])
 
 sell_x = []
@@ -55,15 +56,15 @@ def plot_pos(leverage):
     pos_value = 0
     movement = 0
 
-    for index, row in data.iterrows():
+    for index, row in sentiment_data.iterrows():
 
-        position = row['positions']
+        position = row['position']
         price = row['open']
 
         if position != "hold":
 
             if position == "sell":
-                sell_x.append(row['Date'])
+                sell_x.append(row['date'])
                 sell_y.append(price)
 
                 if sold == True:
@@ -82,7 +83,7 @@ def plot_pos(leverage):
                     pos_value = price
 
             if position == "buy":
-                buy_x.append(row['Date'])
+                buy_x.append(row['date'])
                 buy_y.append(price)
 
                 if bought == True:
@@ -103,13 +104,12 @@ def plot_pos(leverage):
     return [list(x_pos), list(y_pos)]
 
 
-senti = data['sentiment']
-open_delta = data['open_delta']
+senti = sentiment_data['sentiment']
 
-open_price = data['open']
-close_price = data['close']
+open_price = sentiment_data['open']
+close_price = sentiment_data['close']
 
-date = data['Date']
+date = sentiment_data['date']
 dates = []
 
 main_dates = main_price_data['date']
@@ -127,7 +127,7 @@ pos_plt = plot_pos(1)
 
 trades = ""
 
-for i in mvs:
+for i in reversed(mvs):
     trades += str(round(i, 2)) + "% |\t"
 
 
@@ -146,7 +146,6 @@ def create_plot(y_data, x_data=dates):
 main_price_plot = create_plot(main_price_data['open'], full_dates)
 open_price_plot = create_plot(open_price)
 close_price_plot = create_plot(close_price)
-open_delta_plot = create_plot(open_delta)
 
 buy_annotations = go.Scatter(
     x=buy_x,
@@ -154,7 +153,6 @@ buy_annotations = go.Scatter(
     mode='markers+text',
     name='Buy',
     text="buy",
-    hoverinfo='none',
     textposition='middle right'
 )
 
@@ -164,7 +162,6 @@ sell_annotations = go.Scatter(
     mode='markers+text',
     name='Sell',
     text="sell",
-    hoverinfo='none',
     textposition='middle right'
 )
 
@@ -299,4 +296,4 @@ def full_graph(value):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True, host='0.0.0.0', port=5500)
+    app.run_server(debug=False, host='0.0.0.0', port=5500)
