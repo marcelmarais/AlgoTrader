@@ -3,6 +3,7 @@ import pickle
 import sqlite3
 import sys
 import time
+import argparse
 from datetime import date as dt
 
 import dateutil.relativedelta
@@ -11,30 +12,46 @@ import pandas as pd
 from InstrumentPricing import price as pr
 from SentimentAnalysis.news import news_data
 
-conn = sqlite3.connect('Data/AlgoTrader.db')
-c = conn.cursor()
-
 start_time = time.time()
 
-sensitivity = 1.25  # STD multiple
+parser = argparse.ArgumentParser()
 
-args = len(sys.argv)
+parser.add_argument("-t","--ticker", 
+                    help="Specify the ticker symbol.")
 
-if args > 1:
-    ticker = sys.argv[1]
+parser.add_argument("-c","--cache", action="store_true",
+                    help="Indicate if you want to use cached data.")
+                    
+parser.add_argument("-s","--sensitivity", type=float,
+                    help="Sets the buy/sell sensitivity in\
+                         STD multiples.")
+                    
+cl_args = parser.parse_args()
 
-    with open("Data/ticker.txt", 'w') as f:
-        f.write(ticker)
+cache = cl_args.cache
 
-    if args > 2:
-        cache = eval(sys.argv[2])
+if cl_args.ticker:
+
+    if cache:
+        print("Ticker symbol is ignored when cache is enabled.")
+        
+        with open("Data/ticker.txt") as f:
+            ticker = f.read()
+        print(f"{ticker} is the symbol used in cached data.\n")
+
     else:
-        cache = False
+        ticker = cl_args.ticker
+        
 else:
     with open("Data/ticker.txt") as f:
         ticker = f.read()
 
-    cache = False
+if cl_args.sensitivity:
+    sensitivity = cl_args.sensitivity  # STD multiple
+else: sensitivity = 1
+
+conn = sqlite3.connect('Data/AlgoTrader.db')
+c = conn.cursor()
 
 end = datetime.datetime.strptime(str(dt.today()), "%Y-%m-%d")
 
@@ -60,7 +77,7 @@ sentiment_dates_list = dates_generated[::-1][:30]
 
 # Prices added here:
 
-if cache == True:
+if cache:
     prices = pd.read_pickle("Data/price.pkl")
 
 else:
@@ -105,7 +122,7 @@ title_dates = []
 all_titles = []
 title_senti = []
 
-if cache == True:
+if cache:
     news_data = pd.read_pickle("Data/newsData.pickle")
     title_data = pd.read_pickle("Data/titleData.pickle")
    
@@ -220,10 +237,11 @@ for i in title_data.iterrows():
      VALUES(NULL,?,?,?,?)
      """, insert_title_values)
 
-
 conn.commit()
 conn.close()
 
+with open("Data/ticker.txt", 'w') as f:
+            f.write(ticker)
 
 end_time = time.time()
 time_taken = end_time - start_time
