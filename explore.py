@@ -16,6 +16,19 @@ import plotly.graph_objs as go
 from dash.dependencies import Input, Output
 from numpy import array
 
+try:
+    with open("Data/stock_data.json") as f:
+        stock_data = json.load(f)
+except:
+    if cache:
+        print("""
+            It looks like you are trying to run the program
+            without generating data first.
+            """)
+        exit()
+    else:
+        pass
+
 # All SQL queries happen here:
 
 conn = sqlite3.connect('Data/AlgoTrader.db')
@@ -40,8 +53,7 @@ buy_x = []
 buy_y = []
 mvs = []
 
-with open("Data/company_name.txt") as f:
-    graph_title = f.read()
+graph_title = stock_data['FullName']
 
 
 # Appends buy/sell/hold into separate lists. (PLEASE MAKE THIS BETTER)
@@ -171,8 +183,21 @@ app.scripts.config.serve_locally = True
 app.css.config.serve_locally = True
 
 app.layout = html.Div(children=[
-    html.H1(children='AlgoTrader 0.0'),
 
+    html.Div(style={'display':'flex','flex-direction':'row','flex-wrap':'nowrap','position':'relative','justify-content':'flex-start'},children =[
+    
+    html.Div(children=[
+    html.Img(src=stock_data['Logo'],style={'width':'150px', 'position': 'absolute'}),
+    ]),
+    html.Div(style={'flex':'0 1 auto' ,'position':'absolute','left':'50%','transform':'translateX(-50%)'},children=[
+    html.H1(children='AlgoTrader 0.0',style={'align-self':'center'}),
+    ]),
+    ]),
+
+    html.Br(),
+    html.Br(),
+    html.Br(),
+    html.Br(),
     html.Div(style={'width': '15%',  'margin-left': 'auto', 'margin-right': 'auto'}, children=[
         dcc.Dropdown(
              id='Filter',
@@ -181,6 +206,7 @@ app.layout = html.Div(children=[
              value='Year',
              )]),
     html.Div(id='graph_div', className='row', children=[]),
+
 
 
 ])

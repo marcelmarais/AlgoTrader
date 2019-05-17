@@ -4,6 +4,8 @@ import sqlite3
 import sys
 import time
 import argparse
+import json
+import os
 from datetime import date as dt
 
 import dateutil.relativedelta
@@ -14,41 +16,56 @@ from SentimentAnalysis.news import news_data
 
 start_time = time.time()
 
+exec(open("Data/createTables.py").read())
+
+stock_data = {}
+
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-t","--ticker", 
+parser.add_argument("-t", "--ticker",
                     help="Specify the ticker symbol.")
 
-parser.add_argument("-c","--cache", action="store_true",
+parser.add_argument("-c", "--cache", action="store_true",
                     help="Indicate if you want to use cached data.")
-                    
-parser.add_argument("-s","--sensitivity", type=float,
+
+parser.add_argument("-s", "--sensitivity", type=float,
                     help="Sets the buy/sell sensitivity in\
                          STD multiples.")
-                    
+
 cl_args = parser.parse_args()
 
 cache = cl_args.cache
+
+try:
+    with open("Data/stock_data.json") as f:
+        prev_stock_data = json.load(f)
+except:
+    if cache:
+        print("""
+            It looks like you are trying to run the program
+            for the first time with the cache option - don't do this
+            """)
+        exit()
+    else:
+        pass
 
 if cl_args.ticker:
 
     if cache:
         print("Ticker symbol is ignored when cache is enabled.")
-        
-        with open("Data/ticker.txt") as f:
-            ticker = f.read()
-        print(f"{ticker} is the symbol used in cached data.\n")
+        ticker = prev_stock_data['ticker']
 
     else:
         ticker = cl_args.ticker
-        
+        stock_data['ticker'] = ticker
 else:
-    with open("Data/ticker.txt") as f:
-        ticker = f.read()
+    ticker = prev_stock_data['ticker']
+
 
 if cl_args.sensitivity:
     sensitivity = cl_args.sensitivity  # STD multiple
-else: sensitivity = 1
+else:
+    sensitivity = 1
 
 conn = sqlite3.connect('Data/AlgoTrader.db')
 c = conn.cursor()
@@ -78,38 +95,40 @@ sentiment_dates_list = dates_generated[::-1][:30]
 # Prices added here:
 
 if cache:
+    comp_name = prev_stock_data['FullName']
+    print(f"Loading data for: {comp_name}")
     prices = pd.read_pickle("Data/price.pkl")
 
 else:
     comp_name = instrument_info.get_company_name()
+    logo = instrument_info.get_stock_logo()
+
     print(f"Fetching {comp_name} price data.")
     prices = pd.DataFrame(instrument_info.get_prices())
     prices = prices.reset_index()
 
     latest_open = instrument_info.get_latest_price()
 
-
     prices = prices.append(
-            {'date': end, 'open': instrument_info.get_latest_price()}, ignore_index=True)
-    
+        {'date': end, 'open': instrument_info.get_latest_price()}, ignore_index=True)
+
     if latest_open != None:
-     print(f"The latest opening price is: ${latest_open}")
+        print(f"The latest opening price is: ${latest_open}")
 
     prices.to_pickle("Data/price.pkl")
     c.execute('DELETE FROM Main')
-    
+
     for i in prices.iterrows():
         values = i[1]
-        insert_values = (str(values[0]),values[1],values[2],values[3],
-                        values[4],values[5])
+        insert_values = (str(values[0]), values[1], values[2], values[3],
+                         values[4], values[5])
 
         c.execute("""INSERT INTO Main
         VALUES(?,?,?,?,?,?)
-        """,insert_values)
+        """, insert_values)
 
-
-    with open("Data/company_name.txt", 'w') as f:
-        f.write(comp_name)
+    stock_data['FullName'] = comp_name
+    stock_data['Logo'] = logo
 
     print("Done!\n")
 
@@ -123,9 +142,9 @@ all_titles = []
 title_senti = []
 
 if cache:
-    news_data = pd.read_pickle("Data/newsData.pickle")
-    title_data = pd.read_pickle("Data/titleData.pickle")
-   
+    news_data = pd.read_pickle("Data/newsData.pkl")
+    title_data = pd.read_pickle("Data/titleData.pkl")
+
     print("Data is being loaded from memory.\n")
 
 else:
@@ -133,7 +152,7 @@ else:
     tot_results = 0
 
     for dates in sentiment_dates_list[::-1]:
-        data = news_data(from_date=str(dates))
+        data = news_data(comp_name,from_date=str(dates))
         senti.append(data.get_avg_sentiment())
         tot_results += data.get_num_results()
 
@@ -162,8 +181,8 @@ else:
         'sentiment': senti,
     })
 
-    news_data.to_pickle('Data/newsData.pickle')
-    title_data.to_pickle('Data/titleData.pickle')
+    news_data.to_pickle('Data/newsData.pkl')
+    title_data.to_pickle('Data/titleData.pkl')
 
 news_data = news_data.astype({"Date": 'datetime64[ns]'})
 title_data = title_data.astype({"Date": 'datetime64[ns]'})
@@ -214,7 +233,6 @@ def deter_pos(row,
 
 
 combined['positions'] = deter_pos(combined['sentiment_lag'], sensitivity)
-combined.to_csv('SentimentData.csv', index=False)
 
 c.execute('DELETE FROM ArticleTitles')
 c.execute('DELETE FROM Sentiment')
@@ -222,12 +240,12 @@ c.execute('DELETE FROM Sentiment')
 for i in combined.iterrows():
     values = i[1]
 
-    insert_values = (str(values[0]),values[1],values[7],values[3],
-                    values[2],values[4],values[8])
+    insert_values = (str(values[0]), values[1], values[7], values[3],
+                     values[2], values[4], values[8])
 
     c.execute("""INSERT INTO Sentiment
     VALUES(NULL,?,?,?,?,?,?,?)
-    """,insert_values)
+    """, insert_values)
 
 for i in title_data.iterrows():
     values = i[1]
@@ -240,8 +258,9 @@ for i in title_data.iterrows():
 conn.commit()
 conn.close()
 
-with open("Data/ticker.txt", 'w') as f:
-            f.write(ticker)
+if not cache:
+    with open("Data/stock_data.json", 'w') as f:
+        json.dump(stock_data, f)
 
 end_time = time.time()
 time_taken = end_time - start_time

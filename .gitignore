@@ -1,3 +1,7 @@
+AlgoTrader.db
 apiKeys*
+*.pkl
 .vscode
 __pycache__
+stock_data.json
+.DS_Store

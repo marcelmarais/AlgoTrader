@@ -9,18 +9,15 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import statistics
 
 class news_data():
-    def __init__(self, from_date=str(dt.today())):
+    def __init__(self, stock_name,from_date=str(dt.today())):
 
         with open('Data/apiKeys.txt') as f:
             api_key = f.readlines()
 
-        api_key = api_key[0]
+        api_key = api_key[1]
 
-        # with open("Data/company_name.txt") as f:
-        #     comp_name = f.read()
-
+        key_words = stock_name + ' OR manufacturing'
         key_words = '''yield curve OR core inflation OR manufacturing OR stock valuation'''
-        #key_words = comp_name
 
         url = ('https://newsapi.org/v2/everything?'
                'pageSize=100&q=' + key_words + '&from=' + from_date + 
@@ -111,7 +108,10 @@ class news_data():
             if i != 0:
                 cnt += i
                 tot += 1
-        avg = cnt / tot
+        try:
+            avg = cnt / tot
+        except:
+            avg = 0
 
         return avg
 

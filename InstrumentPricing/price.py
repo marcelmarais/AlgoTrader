@@ -43,7 +43,11 @@ class price_data():
         company_name = self.stock_object.get_company_name()
         return company_name
 
+    def get_stock_logo(self):
+        logo = self.stock_object.get_logo()['url']
+        return logo
+
 
 if __name__ == "__main__":
-    test = price_data('14-05-2019', ticker="DIA")
-    print(test.get_latest_price())
+    test = price_data('14-05-2019', ticker="GOOGL")
+    print(test.get_stock_logo())
