@@ -16,8 +16,6 @@ from SentimentAnalysis.news import news_data
 
 start_time = time.time()
 
-exec(open("Data/createTables.py").read())
-
 stock_data = {}
 
 parser = argparse.ArgumentParser()
@@ -35,6 +33,8 @@ parser.add_argument("-s", "--sensitivity", type=float,
 cl_args = parser.parse_args()
 
 cache = cl_args.cache
+
+if not cache: exec(open("Data/createTables.py").read())
 
 try:
     with open("Data/stock_data.json") as f:
@@ -207,7 +207,9 @@ combined['open_delta'] = combined['open'].pct_change()
 # Sentiment lags added here:
 
 combined['sentiment_lag'] = combined['sentiment'].shift(1)
-
+# combined['sentiment_delta'] = combined['sentiment'].pct_change()
+# combined['sentiment_delta_lag'] = combined['sentiment_delta'].shift(1)
+# print(combined.head())
 # Positions added here:
 
 

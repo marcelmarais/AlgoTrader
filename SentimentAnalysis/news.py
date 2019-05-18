@@ -14,7 +14,7 @@ class news_data():
         with open('Data/apiKeys.txt') as f:
             api_key = f.readlines()
 
-        api_key = api_key[1]
+        api_key = str(api_key[1])
 
         key_words = stock_name + ' OR manufacturing'
         key_words = '''yield curve OR core inflation OR manufacturing OR stock valuation'''
