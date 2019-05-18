@@ -225,10 +225,10 @@ def deter_pos(row,
         pos = 'hold'
 
         if i > mean + (sensitivity * std):
-            pos = 'buy'
+            pos = 'sell'
 
         if i < mean - (sensitivity * std):
-            pos = 'sell'
+            pos = 'buy'
 
         position.append(pos)
     return position
@@ -247,6 +247,8 @@ ma_data['SMA']= moving_averages.sma()
 ma_data['EMA']= moving_averages.ema()
 ma_data['MACD']= moving_averages.MACD()
 ma_data['MACD Signal']= moving_averages.MACD_signal()
+ma_data['Bollinger Lower'] = moving_averages.Bollinger_Lo()
+ma_data['Bollinger Upper'] = moving_averages.Bollinger_Up()
 
 ma_data = ma_data.drop(['high','low'],axis = 1)
 
@@ -266,10 +268,10 @@ for i in combined.iterrows():
 for i in ma_data.iterrows():
     values = i[1]
     insert_ma_values = (str(values[0]), values[1], values[2], values[3], 
-                            values[4], values[5], values[6], values[7])
+                            values[4], values[5], values[6], values[7],values[8],values[9])
 
     c.execute("""INSERT INTO MovingAverages 
-     VALUES(NULL,?,?,?,?,?,?,?,?)
+     VALUES(NULL,?,?,?,?,?,?,?,?,?,?)
      """, insert_ma_values)
 
 for i in title_data.iterrows():

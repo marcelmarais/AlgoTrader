@@ -40,7 +40,7 @@ class MA():
       signal = signal[0].tolist()
       return signal
 
-  def Bollinger_Hi(self):
+  def Bollinger_Up(self):
     SMA = self.sma()
     STD = self.df
     STD = STD.rolling(window=self.window).std()

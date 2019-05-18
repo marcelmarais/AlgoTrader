@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
+from plotly import tools
 from dash.dependencies import Input, Output
 from numpy import array
 
@@ -20,14 +21,11 @@ try:
     with open("Data/stock_data.json") as f:
         stock_data = json.load(f)
 except:
-    if cache:
-        print("""
+    print("""
             It looks like you are trying to run the program
             without generating data first.
-            """)
-        exit()
-    else:
-        pass
+        """)
+    exit()
 
 # All SQL queries happen here:
 
@@ -36,10 +34,12 @@ conn = sqlite3.connect('Data/AlgoTrader.db')
 article_query = "SELECT strftime('%Y-%m-%d', date) AS date,sentiment,URL,title FROM ArticleTitles ORDER BY sentiment DESC;"
 sentiment_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,close,sentiment,position  FROM Sentiment;"
 main_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,volume  FROM Main;"
+ma_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,SMA,EMA,MACD,MACDsignal,BollingerLower,BollingerUpper FROM MovingAverages"
 
 article_title_data = pd.read_sql_query(article_query, conn)
 main_price_data = pd.read_sql_query(main_query, conn)
 sentiment_data = pd.read_sql_query(sentiment_query,conn)
+ma_data = pd.read_sql_query(ma_query,conn)
 
 conn.commit()
 conn.close()
@@ -143,21 +143,39 @@ for i in reversed(mvs):
     trades += str(round(i, 2)) + "% |\t"
 
 
-def create_plot(y_data, x_data=dates):
+# All plots are created here:
+
+def create_plot(y_data, x_data=full_dates,name='Open'):
     standard_plot = go.Scatter(
         x=x_data,
         y=y_data,
 
         mode='lines',
-        name='Open',
+        name=name,
     )
 
     return standard_plot
 
+main_price_plot = create_plot(main_price_data['open'])
+open_price_plot = create_plot(open_price, dates)
+close_price_plot = create_plot(close_price,dates)
 
-main_price_plot = create_plot(main_price_data['open'], full_dates)
-open_price_plot = create_plot(open_price)
-close_price_plot = create_plot(close_price)
+sma_plot = create_plot(ma_data['SMA'],name='SMA')
+ema_plot = create_plot(ma_data['EMA'],name='EMA')
+
+MACD_plot = create_plot(ma_data['MACD'],name='MACD')
+MACD_signal_plot = create_plot(ma_data['MACDsignal'],name='MACD signal')
+
+MACD_with_price = tools.make_subplots(rows=2, cols=1,shared_xaxes=True)
+
+MACD_with_price.append_trace(main_price_plot, 1, 1)
+MACD_with_price.append_trace(MACD_plot, 2, 1)
+MACD_with_price.append_trace(MACD_signal_plot, 2, 1)
+
+bollinger_lower = create_plot(ma_data['BollingerLower'])
+bollinger_upper = create_plot(ma_data['BollingerUpper'])
+
+print(MACD_with_price)
 
 buy_annotations = go.Scatter(
     x=buy_x,
@@ -187,7 +205,7 @@ app.layout = html.Div(children=[
     html.Div(style={'display':'flex','flex-direction':'row','flex-wrap':'nowrap','position':'relative','justify-content':'flex-start'},children =[
     
     html.Div(children=[
-    html.Img(src=stock_data['Logo'],style={'width':'150px', 'position': 'absolute'}),
+    html.Img(src=stock_data['Logo'],style={'width':'100px', 'position': 'absolute'}),
     ]),
     html.Div(style={'flex':'0 1 auto' ,'position':'absolute','left':'50%','transform':'translateX(-50%)'},children=[
     html.H1(children='AlgoTrader 0.0',style={'align-self':'center'}),
@@ -198,16 +216,14 @@ app.layout = html.Div(children=[
     html.Br(),
     html.Br(),
     html.Br(),
-    html.Div(style={'width': '15%',  'margin-left': 'auto', 'margin-right': 'auto'}, children=[
+    html.Div(style={'width': '25%',  'margin-left': 'auto', 'margin-right': 'auto'}, children=[
         dcc.Dropdown(
              id='Filter',
-             options=[{'label': "Month", 'value': "Month"},
-                      {'label': "Year", 'value': "Year"}],
-             value='Year',
+             options=[{'label': "Sentiment", 'value': "sentiment"},
+                      {'label': "Moving Average", 'value': "moving_average"}],
+             value='moving_average',
              )]),
     html.Div(id='graph_div', className='row', children=[]),
-
-
 
 ])
 
@@ -216,7 +232,7 @@ app.config['suppress_callback_exceptions'] = True
 @app.callback(
     Output('click-data', 'children'),
     [Input('graph', 'clickData')])
-def display_hover_data(clickData):
+def display_click_data(clickData):
     try:
         dates = clickData['points'][0]["x"]
         new_title_data = article_title_data.loc[article_title_data['date'] == str(
@@ -246,12 +262,12 @@ def display_hover_data(clickData):
     return headings
 
 
-@app.callback(
-    Output('news_title', 'children'),
-    [Input('graph', 'clickData')])
-def display_hover_data(clickData):
-    title_date = clickData['points'][0]["x"]
-    return None
+# @app.callback(
+#     Output('news_title', 'children'),
+#     [Input('graph', 'clickData')])
+# def display_hover_data(clickData):
+#     title_date = clickData['points'][0]["x"]
+#     return None
 
 
 @app.callback(
@@ -259,10 +275,22 @@ def display_hover_data(clickData):
     [Input('Filter', 'value')])
 def full_graph(value):
 
-    if value == "Year":
+    if value == "moving_average":
         graph = html.Div(children=[
+
+            dcc.RadioItems(
+                id='radio-items',
+                options = [
+                    {'label': 'SMA', 'value': 'sma'},
+                    {'label': 'EMA', 'value': 'ema'},
+                    {'label': 'MACD', 'value': 'macd'},
+                    {'label': 'Bollinger', 'value': 'bollinger'},
+                    ],
+                value = "sma",
+                labelStyle={'display': 'inline-block'}
+            ),
             dcc.Graph(
-                id='graph',
+                id='moving_average',
                 figure={
                     'data': [
                         main_price_plot,
@@ -281,7 +309,7 @@ def full_graph(value):
         ]
         )
 
-    if value == "Month":
+    if value == "sentiment":
 
         graph = [
             html.Div(className='two-thirds column', children=[
@@ -306,6 +334,7 @@ def full_graph(value):
                 html.H6(f"{len(mvs)} position(s) closed."),
                 html.H6(f"{trades}"),
             ]),
+            
             html.Div(className='four columns', children=[
                 html.H4(id="news_title", children="Click to see news headlines!"),
                 html.Div(style={'margin-left': 'auto', 'margin-right': 'auto'}, children=[
@@ -320,6 +349,59 @@ def full_graph(value):
 
     return graph
 
+@app.callback(Output('moving_average', 'figure'),
+    [Input('radio-items', 'value')])
+def moving_averages(value):
+    data = {}
+
+    if value == 'sma':
+        print("Here")
+        data = {
+                    'data': [
+                        main_price_plot,
+                        sma_plot,
+                    ],
+                    'layout': {
+                        'title': graph_title,
+                        'clickmode': 'event+select',
+                        'paper_bgcolor': 'rgba(0,0,0,0)',
+                        'plot_bgcolor': 'rgba(0,0,0,0)',
+                    }
+                }
+
+    if value == 'ema':
+
+        data = {
+                    'data': [
+                        main_price_plot,
+                        ema_plot,
+                    ],
+                    'layout': {
+                        'title': graph_title,
+                        'clickmode': 'event+select',
+                        'paper_bgcolor': 'rgba(0,0,0,0)',
+                        'plot_bgcolor': 'rgba(0,0,0,0)',
+                    }
+                }
+    if value == 'macd':
+        data = MACD_with_price
+
+    if value == 'bollinger':
+        data = {
+                    'data': [
+                        main_price_plot,
+                        bollinger_lower,
+                        bollinger_upper,
+                    ],
+                    'layout': {
+                        'title': graph_title,
+                        'clickmode': 'event+select',
+                        'paper_bgcolor': 'rgba(0,0,0,0)',
+                        'plot_bgcolor': 'rgba(0,0,0,0)',
+                    }
+                }
+    return data
+
 
 if __name__ == '__main__':
-    app.run_server(debug=False, host='0.0.0.0', port=5500)
+    app.run_server(debug=True, host='0.0.0.0', port=5500)
