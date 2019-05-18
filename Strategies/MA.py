@@ -14,7 +14,7 @@ class MA():
     sma = sma.rolling(window=self.window).mean()
     return sma
 
-  def ema(self,window):
+  def ema(self,window=20):
     ema = self.df
     ema = ema.ewm(min_periods = window,span= window).mean()
     return ema
@@ -36,7 +36,7 @@ class MA():
 
       return MACD
 
-  def MACD_Signal(self):
+  def MACD_signal(self):
       signal = self.ema_MACD(self.MACD(),9)
       signal = signal[0].tolist()
       return signal
