@@ -1,5 +1,4 @@
 import pandas as pd
-import os
 import matplotlib.pyplot as plt 
 import math
 
@@ -41,13 +40,39 @@ class MA():
       signal = signal[0].tolist()
       return signal
 
+  def Bollinger_Hi(self):
+    SMA = self.sma()
+    STD = self.df
+    STD = STD.rolling(window=self.window).std()
+
+    Bollinger_Upper = []
+
+    for i in range(0,len(SMA)):
+      Bollinger_Upper.append(SMA[i]+2*STD[i])
+
+    return Bollinger_Upper  
+
+  def Bollinger_Lo(self):
+    SMA = self.sma()
+    STD = self.df
+    STD = STD.rolling(window=self.window).std()
+
+    Bollinger_lower = []
+
+    for i in range(0,len(SMA)):
+      Bollinger_lower.append(SMA[i]-2*STD[i])
+
+    return Bollinger_lower  
 
 if __name__ == "__main__":
-  data = pd.read_pickle('price.pkl')['open']
+  data = pd.read_pickle('price.pkl')
   data = data.drop(len(data)-1)
-  ma = MA(data)
+  ma = MA(data['open'])
 
-  print(ma.MACD())
-  print(ma.MACD_Signal())
+  plt.plot(data['date'],ma.Bollinger_Hi())
+  plt.plot(data['date'],ma.Bollinger_Lo())
+  plt.plot(data['date'],ma.sma())
+  plt.plot(data['date'],data['open'])
+  plt.show()
 
 
