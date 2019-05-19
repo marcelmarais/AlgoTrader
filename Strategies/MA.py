@@ -1,5 +1,4 @@
 import pandas as pd
-import matplotlib.pyplot as plt 
 import math
 
 class MA():
@@ -11,16 +10,19 @@ class MA():
   def sma(self):
     sma = self.df
     sma = sma.rolling(window=self.window).mean()
+
     return sma
 
   def ema(self,window=20):
     ema = self.df
     ema = ema.ewm(min_periods = window,span= window).mean()
+
     return ema
 
   def ema_MACD(self,data,window):
     ema = pd.DataFrame(data)
     ema = ema.ewm(min_periods = window,span= window).mean()
+
     return ema
 
   def MACD(self):
@@ -38,41 +40,29 @@ class MA():
   def MACD_signal(self):
       signal = self.ema_MACD(self.MACD(),9)
       signal = signal[0].tolist()
+
       return signal
 
   def Bollinger_Up(self):
-    SMA = self.sma()
-    STD = self.df
-    STD = STD.rolling(window=self.window).std()
+    bollinger_upper = []
 
-    Bollinger_Upper = []
+    STD = self.df.rolling(window=self.window).std()
 
-    for i in range(0,len(SMA)):
-      Bollinger_Upper.append(SMA[i]+2*STD[i])
+    for i in zip(self.sma(),STD):
+      bollinger_upper.append(i[0]+2*i[1])
 
-    return Bollinger_Upper  
+    return bollinger_upper  
 
   def Bollinger_Lo(self):
-    SMA = self.sma()
-    STD = self.df
-    STD = STD.rolling(window=self.window).std()
+    bollinger_lower = []
 
-    Bollinger_lower = []
+    STD = self.df.rolling(window=self.window).std()
 
-    for i in range(0,len(SMA)):
-      Bollinger_lower.append(SMA[i]-2*STD[i])
+    for i in zip(self.sma(),STD):
+      bollinger_lower.append(i[0]-2*i[1])
 
-    return Bollinger_lower  
+    return bollinger_lower  
 
 if __name__ == "__main__":
-  data = pd.read_pickle('price.pkl')
-  data = data.drop(len(data)-1)
-  ma = MA(data['open'])
-
-  plt.plot(data['date'],ma.Bollinger_Hi())
-  plt.plot(data['date'],ma.Bollinger_Lo())
-  plt.plot(data['date'],ma.sma())
-  plt.plot(data['date'],data['open'])
-  plt.show()
-
+  pass
 
