@@ -175,8 +175,6 @@ MACD_with_price.append_trace(MACD_signal_plot, 2, 1)
 bollinger_lower = create_plot(ma_data['BollingerLower'])
 bollinger_upper = create_plot(ma_data['BollingerUpper'])
 
-print(MACD_with_price)
-
 buy_annotations = go.Scatter(
     x=buy_x,
     y=buy_y,
@@ -195,6 +193,24 @@ sell_annotations = go.Scatter(
     textposition='middle right'
 )
 
+# Layouts:
+
+standard_layout = {
+    'title': graph_title,
+    'clickmode': 'event+select',
+    'paper_bgcolor': 'rgba(0,0,0,0)',
+    'plot_bgcolor': 'rgba(0,0,0,0)',
+    'legend': {'orientation': "h"},
+}
+
+# Reusable parts:
+
+profit_loss = html.Div(children = [
+    html.H6(f"{len(mvs)} position(s) closed."),
+    html.H6(f"{trades}")
+])
+
+
 app = dash.Dash(__name__, static_folder='assets')
 
 app.scripts.config.serve_locally = True
@@ -202,32 +218,48 @@ app.css.config.serve_locally = True
 
 app.layout = html.Div(children=[
 
-    html.Div(style={'display':'flex','flex-direction':'row','flex-wrap':'nowrap','position':'relative','justify-content':'flex-start'},children =[
+    html.Div(style={'display':'flex','flex-direction':'row','flex-wrap':'nowrap','position':'relative','justify-content':'flex-start'},
     
-    html.Div(children=[
-    html.Img(src=stock_data['Logo'],style={'width':'100px', 'position': 'absolute'}),
+    children =[
+    
+        html.Div(
+        children=[
+            html.Img(src=stock_data['Logo'],style={'width':'100px', 'position': 'absolute'}),
+        ]),
+    
+        html.Div(
+        style={'flex':'0 1 auto' ,'position':'absolute','left':'50%','transform':'translateX(-50%)'},
+        children=[
+            html.H1(children='AlgoTrader 0.0',style={'align-self':'center'}),
+        ]),
     ]),
-    html.Div(style={'flex':'0 1 auto' ,'position':'absolute','left':'50%','transform':'translateX(-50%)'},children=[
-    html.H1(children='AlgoTrader 0.0',style={'align-self':'center'}),
-    ]),
-    ]),
+    
+    html.Div(style = {'height':'110px'}),
 
-    html.Br(),
-    html.Br(),
-    html.Br(),
-    html.Br(),
     html.Div(style={'width': '25%',  'margin-left': 'auto', 'margin-right': 'auto'}, children=[
         dcc.Dropdown(
              id='Filter',
              options=[{'label': "Sentiment", 'value': "sentiment"},
                       {'label': "Moving Average", 'value': "moving_average"}],
              value='moving_average',
-             )]),
+        )
+    ]),
+    
     html.Div(id='graph_div', className='row', children=[]),
 
 ])
 
 app.config['suppress_callback_exceptions'] = True
+
+@app.callback(#Fix this / make a decision
+    Output('news_title', 'children'),
+    [Input('graph', 'clickData')])
+def display_hover_data(clickData):
+    try:
+        title_date = clickData['points'][0]["x"]
+    except:
+        pass
+    return None
 
 @app.callback(
     Output('click-data', 'children'),
@@ -262,14 +294,6 @@ def display_click_data(clickData):
     return headings
 
 
-# @app.callback(
-#     Output('news_title', 'children'),
-#     [Input('graph', 'clickData')])
-# def display_hover_data(clickData):
-#     title_date = clickData['points'][0]["x"]
-#     return None
-
-
 @app.callback(
     Output('graph_div', 'children'),
     [Input('Filter', 'value')])
@@ -285,7 +309,7 @@ def full_graph(value):
                     {'label': 'EMA', 'value': 'ema'},
                     {'label': 'MACD', 'value': 'macd'},
                     {'label': 'Bollinger', 'value': 'bollinger'},
-                    ],
+                ],
                 value = "sma",
                 labelStyle={'display': 'inline-block'}
             ),
@@ -295,17 +319,12 @@ def full_graph(value):
                     'data': [
                         main_price_plot,
                     ],
-                    'layout': {
-                        'title': graph_title,
-                        'clickmode': 'event+select',
-                        'paper_bgcolor': 'rgba(0,0,0,0)',
-                        'plot_bgcolor': 'rgba(0,0,0,0)',
-                    }
-                }
 
+                    'layout': standard_layout
+                }
             ),
-            html.H6(f"{len(mvs)} position(s) closed."),
-            html.H6(f"{trades}"),
+
+            profit_loss,
         ]
         )
 
@@ -321,18 +340,11 @@ def full_graph(value):
                             buy_annotations,
                             sell_annotations,
                         ],
-                        'layout': {
-                            'title': graph_title,
-                            'clickmode': 'event+select',
-                            'paper_bgcolor': 'rgba(0,0,0,0)',
-                            'plot_bgcolor': 'rgba(0,0,0,0)',
-                            'legend': {'orientation': "h"},
-                        }
+                        'layout': standard_layout
                     }
-
                 ),
-                html.H6(f"{len(mvs)} position(s) closed."),
-                html.H6(f"{trades}"),
+
+                profit_loss,
             ]),
             
             html.Div(className='four columns', children=[
@@ -355,18 +367,13 @@ def moving_averages(value):
     data = {}
 
     if value == 'sma':
-        print("Here")
+
         data = {
                     'data': [
                         main_price_plot,
                         sma_plot,
                     ],
-                    'layout': {
-                        'title': graph_title,
-                        'clickmode': 'event+select',
-                        'paper_bgcolor': 'rgba(0,0,0,0)',
-                        'plot_bgcolor': 'rgba(0,0,0,0)',
-                    }
+                    'layout': standard_layout
                 }
 
     if value == 'ema':
@@ -376,13 +383,9 @@ def moving_averages(value):
                         main_price_plot,
                         ema_plot,
                     ],
-                    'layout': {
-                        'title': graph_title,
-                        'clickmode': 'event+select',
-                        'paper_bgcolor': 'rgba(0,0,0,0)',
-                        'plot_bgcolor': 'rgba(0,0,0,0)',
-                    }
+                    'layout': standard_layout
                 }
+    
     if value == 'macd':
         data = MACD_with_price
 
@@ -393,12 +396,7 @@ def moving_averages(value):
                         bollinger_lower,
                         bollinger_upper,
                     ],
-                    'layout': {
-                        'title': graph_title,
-                        'clickmode': 'event+select',
-                        'paper_bgcolor': 'rgba(0,0,0,0)',
-                        'plot_bgcolor': 'rgba(0,0,0,0)',
-                    }
+                    'layout': standard_layout
                 }
     return data
 
