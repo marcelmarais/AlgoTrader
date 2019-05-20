@@ -40,6 +40,8 @@ try:
           EMA     REAL,
           MACD     REAL,
           MACDsignal     REAL,
+          BollingerLower     REAL,
+          BollingerUpper     REAL,
           FOREIGN KEY(date) REFERENCES Main(date)
           )
           ''')
