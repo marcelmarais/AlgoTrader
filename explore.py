@@ -34,12 +34,16 @@ conn = sqlite3.connect('Data/AlgoTrader.db')
 article_query = "SELECT strftime('%Y-%m-%d', date) AS date,sentiment,URL,title FROM ArticleTitles ORDER BY sentiment DESC;"
 sentiment_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,close,sentiment,position  FROM Sentiment;"
 main_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,volume  FROM Main;"
+
 ma_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,SMA,EMA,MACD,MACDsignal,BollingerLower,BollingerUpper FROM MovingAverages"
+momentum_query = "SELECT strftime('%Y-%m-%d', date) AS date,RSI_14,Stoch_RSI_14,OBV,TSI_25_13 FROM Momentum"
 
 article_title_data = pd.read_sql_query(article_query, conn)
 main_price_data = pd.read_sql_query(main_query, conn)
 sentiment_data = pd.read_sql_query(sentiment_query,conn)
+
 ma_data = pd.read_sql_query(ma_query,conn)
+momentum_data = pd.read_sql_query(momentum_query,conn)
 
 conn.commit()
 conn.close()
@@ -156,6 +160,8 @@ def create_plot(y_data, x_data=full_dates,name='Open'):
 
     return standard_plot
 
+# Moving Average Plots
+
 main_price_plot = create_plot(main_price_data['open'])
 open_price_plot = create_plot(open_price, dates)
 close_price_plot = create_plot(close_price,dates)
@@ -174,6 +180,19 @@ MACD_with_price.append_trace(MACD_signal_plot, 2, 1)
 
 bollinger_lower = create_plot(ma_data['BollingerLower'])
 bollinger_upper = create_plot(ma_data['BollingerUpper'])
+
+# Momentum Plots
+
+RSI = create_plot(momentum_data['RSI_14'])
+
+RSI_with_price_plot = tools.make_subplots(rows=2, cols=1,shared_xaxes=True)
+RSI_with_price_plot.append_trace(main_price_plot, 1, 1)
+RSI_with_price_plot.append_trace(RSI, 2, 1)
+
+TSI = create_plot(momentum_data['TSI_25_13'])
+TSI_with_price_plot = tools.make_subplots(rows=2, cols=1,shared_xaxes=True)
+TSI_with_price_plot.append_trace(main_price_plot, 1,1)
+TSI_with_price_plot.append_trace(TSI, 2,1)
 
 buy_annotations = go.Scatter(
     x=buy_x,
@@ -240,7 +259,8 @@ app.layout = html.Div(children=[
         dcc.Dropdown(
              id='Filter',
              options=[{'label': "Sentiment", 'value': "sentiment"},
-                      {'label': "Moving Average", 'value': "moving_average"}],
+                      {'label': "Moving Averages", 'value': "moving_average"},
+                      {'label': "Momentum Indicators", 'value': "momentum"}],
              value='moving_average',
         )
     ]),
@@ -327,6 +347,32 @@ def full_graph(value):
             profit_loss,
         ]
         )
+    if value == "momentum":
+        graph = html.Div(children=[
+
+            dcc.RadioItems(
+                id='momentum-items',
+                options = [
+                    {'label': 'RSI', 'value': 'rsi'},
+                    {'label': 'TSI', 'value': 'tsi'},
+                ],
+                value = "rsi",
+                labelStyle={'display': 'inline-block'}
+            ),
+            dcc.Graph(
+                id='momentum',
+                figure={
+                    'data': [
+                        main_price_plot,
+                    ],
+
+                    'layout': standard_layout
+                }
+            ),
+
+            profit_loss,
+        ]
+        )
 
     if value == "sentiment":
 
@@ -398,6 +444,19 @@ def moving_averages(value):
                     ],
                     'layout': standard_layout
                 }
+    return data
+
+@app.callback(Output('momentum', 'figure'),
+    [Input('momentum-items', 'value')])
+def moving_averages(value):
+    data = {}
+
+    if value == 'rsi':
+        data = RSI_with_price_plot
+    
+    if value == 'tsi':
+        data = TSI_with_price_plot
+
     return data
 
 
