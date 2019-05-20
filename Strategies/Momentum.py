@@ -6,39 +6,72 @@ from statistics import mean
 class Momentum():
     def __init__(self,data):
         self.df = data
-    def RSI(self):
-        data = self.df['open']
-        data = data.tolist()
-        RSI = []
-        for i in range(14):
-            RSI.append(math.nan)
-        for i in range(0,len(data)-14):
-            up = []
-            down = []    
-            x = pd.DataFrame(data[i:i+15]).diff()
-            
-            for j in x[0]:
-                if j >=0:
-                    up.append(j)
-                else: down.append(abs(j))
-            up = mean(up)         
-            down = mean(down[1::])
-            RS = up/down #Relative strength
-            RSI.append(100-100/(1+RS))                  
-        return RSI
 
-    def OBV(self):
-        data = self.df
-        volume = data['volume']
-        open = data['open']
-        close = data['close']  
-        OBV = [volume[0]]            
-        for i in range(1,len(volume)):
-            if close[i-1] < close[i]:
-                OBV.append(OBV[i-1]+volume[i]) # Change is positive if it was an up-day
-            elif close[i-1] > close[i]:
-                OBV.append((OBV[i-1]-volume[i])) # Change is negative if it was an down-day         
+    def RSI(self,n=14):
+        """Calculate Relative Strength Index(RSI) for given data.
+        
+        :param df: pandas.DataFrame
+        :param n: 
+        :return: pandas.DataFrame
+        """
+        i = 0
+        UpI = [0]
+        DoI = [0]
+        df = self.df
+
+        while i + 1 <= df.index[-1]:
+            UpMove = df.loc[i + 1, 'high'] - df.loc[i, 'high']
+            DoMove = df.loc[i, 'low'] - df.loc[i + 1, 'low']
+
+            if UpMove > DoMove and UpMove > 0:
+                UpD = UpMove
+            else:
+                UpD = 0
+            UpI.append(UpD)
+            if DoMove > UpMove and DoMove > 0:
+                DoD = DoMove
+            else:
+                DoD = 0
+            DoI.append(DoD)
+            i = i + 1
+
+        UpI = pd.Series(UpI)
+        DoI = pd.Series(DoI)
+        PosDI = pd.Series(UpI.ewm(span=n, min_periods=n).mean())
+        NegDI = pd.Series(DoI.ewm(span=n, min_periods=n).mean())
+
+        col_name = 'RSI_' + str(n)
+        RSI = pd.Series(PosDI / (PosDI + NegDI), name=col_name)
+        df = df.join(RSI)
+        
+        return df[col_name]
+
+
+    def OBV(self,n=20):
+        """Calculate On-Balance Volume for given data.
+        
+        :param df: pandas.DataFrame
+        :param n: 
+        :return: pandas.DataFrame
+        """
+        df = self.df
+        i = 0
+        OBV = [0]
+        while i < df.index[-1]:
+            if df.loc[i + 1, 'close'] - df.loc[i, 'close'] > 0:
+                OBV.append(df.loc[i + 1, 'volume'])
+            if df.loc[i + 1, 'close'] - df.loc[i, 'close'] == 0:
+                OBV.append(0)
+            if df.loc[i + 1, 'close'] - df.loc[i, 'close'] < 0:
+                OBV.append(-df.loc[i + 1, 'volume'])
+            i = i + 1
+        OBV = pd.Series(OBV)
+        col_name = 'OBV_' + str(n)
+        OBV_ma = pd.Series(OBV.rolling(n, min_periods=n).mean(), name=col_name)
+        df = df.join(OBV_ma)
+
         return OBV
+
     
     def DOBV(self):
         DOBV = self.OBV()
@@ -46,29 +79,33 @@ class Momentum():
         DOBV = DOBV.pct_change()
         return DOBV
 
-    def Stochastic_Oscillator(self): #maybe probably doesn't work
-        high = self.df['high']
-        high = high.tolist()
-        low = self.df['low']
-        low = low.tolist()
-        close = self.df['close']
-        close = close.tolist()
-        close =close        
-        SO = []
-        for i in range(14):
-            SO.append(math.nan)
-        for i in range(0,len(high)-14):
-            highest = max(high[i:i+15])
-            lowest = min(low[i:i+15])
-            cl = close[i] 
-            SO.append(((cl-lowest)/(highest-lowest))*100)
-        return SO    
+    def stochastic_oscillator_k(self):
+        """Calculate stochastic oscillator %K for given data.
+        
+        :param df: pandas.DataFrame
+        :return: pandas.DataFrame
+        """
+        df = self.df
+        
+        SOk = pd.Series((df['Close'] - df['Low']) / (df['High'] - df['Low']), name='SO%k')
+        df = df.join(SOk)
+        return df    
 
-    def SMA_3_SO(self): # 3 day simple moving average of Stochastic Oscillator
-        SMA3 = pd.Series(self.Stochastic_Oscillator()).rolling(window=3).mean()        
-        SMA3 = SMA3.tolist()       
-        return SMA3       
-
+    def stochastic_oscillator_d(self, n=3):
+        """Calculate stochastic oscillator %D for given data.
+        :param df: pandas.DataFrame
+        :param n: 
+        :return: pandas.DataFrame
+        """
+        df = self.df
+        
+        SOk = pd.Series((df['close'] - df['low']) / (df['high'] - df['low']), name='SO%k')
+        SOd = pd.Series(SOk.ewm(span=n, min_periods=n).mean(), name='SO%d_' + str(n))
+        df = df.join(SOd)
+        
+        return df
+    
+    
     def Stoch_RSI(self):
         RSI = self.RSI()
         StochRSI = []
@@ -79,22 +116,24 @@ class Momentum():
             lowest = min(RSI[i:i+15])
             val = RSI[i]
             StochRSI.append((val-lowest)/(highest-lowest))
+            
         return StochRSI    
 
 
 
 
-
 if __name__ == "__main__":
+
   data = pd.read_pickle('price.pkl')
   data = data.drop(len(data)-1)
   mo = Momentum(data)
-  plt.plot(mo.df['date'],mo.df['open'])  
- 
-  plt.plot(mo.df['date'],mo.Stoch_RSI())  
+  #plt.plot(mo.df['date'],mo.df['open'])  
 
-  plt.show()
+  mo.RSI()
+
+  #print(mo.relative_strength_index(14))  
 
 
-  
-  
+  #plt.show()
+
+# https://github.com/Crypto-toolbox/pandas-technical-indicators/blob/master/technical_indicators.py
