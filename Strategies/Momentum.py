@@ -238,12 +238,12 @@ class Momentum():
 
 
 if __name__ == "__main__":
-
-  data = pd.read_pickle('price.pkl')
-  data = data.drop(len(data)-1)
-  mo = Momentum(data)
+    pass
+#   data = pd.read_pickle('')
+#   data = data.drop(len(data)-1)
+#   mo = Momentum(data)
   
-  print(mo.call_all())
+#   print(mo.call_all())
   
 
   #plt.show()

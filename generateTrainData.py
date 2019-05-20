@@ -91,6 +91,7 @@ for date in dates_generated:
     dates_list.append(date.strftime("%m-%d-%Y"))
 
 sentiment_dates_list = dates_generated[::-1][:30]
+sentiment_dates_list.insert(0, dt.today())
 
 # Prices added here:
 
@@ -252,6 +253,14 @@ ma_data['Bollinger Upper'] = moving_averages.Bollinger_Up()
 
 ma_data = ma_data.drop(['high','low'],axis = 1)
 
+# Momentum added here:
+
+from Strategies import Momentum
+
+momentum_data = Momentum.Momentum(prices.copy())
+momentum_data = momentum_data.call_all()
+
+
 c.execute('DELETE FROM ArticleTitles')
 c.execute('DELETE FROM Sentiment')
 
@@ -273,6 +282,16 @@ for i in ma_data.iterrows():
     c.execute("""INSERT INTO MovingAverages 
      VALUES(NULL,?,?,?,?,?,?,?,?,?,?)
      """, insert_ma_values)
+
+for i in momentum_data.iterrows():
+    values = i[1]
+    insert_momentum_values = (str(values[0]), values[1], values[2], values[3], 
+                            values[4], values[5], values[6], values[7],
+                            values[8],values[9],values[10])
+
+    c.execute("""INSERT INTO Momentum 
+     VALUES(NULL,?,?,?,?,?,?,?,?,?,?,?)
+     """, insert_momentum_values)
 
 for i in title_data.iterrows():
     values = i[1]

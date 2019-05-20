@@ -45,6 +45,24 @@ try:
           FOREIGN KEY(date) REFERENCES Main(date)
           )
           ''')
+  
+  c.execute('''CREATE TABLE Momentum
+          (
+          MomentumID INTEGER PRIMARY KEY     AUTOINCREMENT,
+          date           TEXT  ,
+          RSI_14        REAL,
+          Stoch_RSI_14      REAL,
+          OBV     REAL,
+          OBV_20     REAL,
+          SOk     REAL,
+          SOd_3     REAL,
+          TSI_25_13     REAL,
+          Ultimate_Osc     REAL,
+          ADX_14_14     REAL,
+          MFI_14     REAL,
+          FOREIGN KEY(date) REFERENCES Main(date)
+          )
+          ''')
 
   c.execute('''CREATE TABLE ArticleTitles
           (TitleID INTEGER PRIMARY KEY     AUTOINCREMENT,
