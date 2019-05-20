@@ -1,4 +1,5 @@
 import sqlite3
+import traceback
 
 with open('Data/AlgoTrader.db', 'w'): pass
 
@@ -28,6 +29,22 @@ try:
           FOREIGN KEY(date) REFERENCES Main(date)
           )
           ''')
+  c.execute('''CREATE TABLE MovingAverages
+          (
+          MovingAverageID INTEGER PRIMARY KEY     AUTOINCREMENT,
+          date           TEXT  ,
+          open        REAL,
+          close      REAL,
+          volume     REAL,
+          SMA     REAL,
+          EMA     REAL,
+          MACD     REAL,
+          MACDsignal     REAL,
+          BollingerLower     REAL,
+          BollingerUpper     REAL,
+          FOREIGN KEY(date) REFERENCES Main(date)
+          )
+          ''')
 
   c.execute('''CREATE TABLE ArticleTitles
           (TitleID INTEGER PRIMARY KEY     AUTOINCREMENT,
@@ -37,9 +54,10 @@ try:
           URL         TEXT,
           FOREIGN KEY(date) REFERENCES Main(date)
           );''')
+
   print("Tables created successfully");
   conn.commit()
   conn.close()
 
 except:
-  pass
+  traceback.print_exc()
