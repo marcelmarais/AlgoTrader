@@ -36,7 +36,7 @@ class price_data():
                     break
         except:
             print("Could not fetch latest price. (Markets are probably closed)")
-            latest = 0
+            latest = math.nan
         return latest
 
     def get_company_name(self):
