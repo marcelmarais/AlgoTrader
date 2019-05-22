@@ -1,11 +1,11 @@
+import argparse
 import datetime
+import json
+import os
 import pickle
 import sqlite3
 import sys
 import time
-import argparse
-import json
-import os
 from datetime import date as dt
 
 import dateutil.relativedelta
@@ -13,6 +13,7 @@ import pandas as pd
 
 from InstrumentPricing import price as pr
 from SentimentAnalysis.news import news_data
+from Strategies import MA, Momentum
 
 start_time = time.time()
 
@@ -121,6 +122,7 @@ else:
 
     for i in prices.iterrows():
         values = i[1]
+
         insert_values = (str(values[0]), values[1], values[2], values[3],
                          values[4], values[5])
 
@@ -207,7 +209,11 @@ combined['open_delta'] = combined['open'].pct_change()
 
 # Sentiment lags added here:
 
-combined['sentiment_lag'] = combined['sentiment'].shift(1)
+combined.loc[-1] = [datetime.date.today() + datetime.timedelta(days=1),None,None,None,None,None,None]  # adding a row
+combined.index = combined.index + 1  # shifting index
+combined = combined.sort_index() 
+
+combined['sentiment_lag'] = combined['sentiment'].shift(-1)
 # combined['sentiment_delta'] = combined['sentiment'].pct_change()
 # combined['sentiment_delta_lag'] = combined['sentiment_delta'].shift(1)
 # print(combined.head())
@@ -239,7 +245,6 @@ combined['positions'] = deter_pos(combined['sentiment_lag'], sensitivity)
 
 # Moving Averages added here:
 
-from Strategies import MA
 
 ma_data = prices.copy()
 moving_averages = MA.MA(ma_data['open'])
@@ -255,11 +260,8 @@ ma_data = ma_data.drop(['high','low'],axis = 1)
 
 # Momentum added here:
 
-from Strategies import Momentum
-
 momentum_data = Momentum.Momentum(prices.copy())
 momentum_data = momentum_data.call_all()
-
 
 c.execute('DELETE FROM ArticleTitles')
 c.execute('DELETE FROM Sentiment')
