@@ -14,6 +14,7 @@ class price_data():
         self.end_date = pd.to_datetime(end_date)
         self.ticker = ticker
         self.stock_object = Stock(ticker)
+        self.data = ''
 
     def get_prices(self):
         data = get_historical_data(
@@ -21,6 +22,8 @@ class price_data():
             start=self.start_date,
             end=self.end_date,
             output_format='pandas')
+        
+        self.data = data
         return data
 
     def get_latest_price(self):
@@ -36,7 +39,7 @@ class price_data():
                     break
         except:
             print("Could not fetch latest price. (Markets are probably closed)")
-            latest = math.nan
+            latest = self.data['open'].tolist()[-1]
         return latest
 
     def get_company_name(self):
@@ -49,5 +52,6 @@ class price_data():
 
 
 if __name__ == "__main__":
-    test = price_data('14-05-2019', ticker="GOOGL")
-    print(test.get_stock_logo())
+    test = price_data('19-05-2019', ticker="GOOGL")
+    test.get_prices()
+    print(test.get_latest_price())
