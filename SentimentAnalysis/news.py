@@ -17,7 +17,7 @@ class news_data():
         api_key = str(api_key[1])
 
         key_words = stock_name + ' OR manufacturing'
-        key_words = '''yield curve OR core inflation OR manufacturing OR stock valuation'''
+        key_words = '''yield curve OR core inflation OR manufacturing OR stock valuation OR earnings OR merger'''
 
         url = ('https://newsapi.org/v2/everything?'
                'pageSize=100&q=' + key_words + '&from=' + from_date + 
@@ -42,9 +42,13 @@ class news_data():
 
         for i in self.raw:
 
-            title = i['title'].replace(",", "")
-            title = title.replace("'", "")
-            title = title.replace('"', "")
+            try:
+                title = i['title'].replace(",", "")
+                title = title.replace("'", "")
+                title = title.replace('"', "")
+            except:
+                pass
+
             self.title.append(title)
 
             link = i['url']
