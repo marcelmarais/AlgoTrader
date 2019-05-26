@@ -36,7 +36,7 @@ sentiment_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,close,sentimen
 main_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,volume  FROM Main;"
 
 ma_query = "SELECT strftime('%Y-%m-%d', date) AS date,open,SMA,EMA,MACD,MACDsignal,BollingerLower,BollingerUpper FROM MovingAverages"
-momentum_query = "SELECT strftime('%Y-%m-%d', date) AS date,RSI_14,Stoch_RSI_14,OBV,TSI_25_13 FROM Momentum"
+momentum_query = "SELECT strftime('%Y-%m-%d', date) AS date,RSI_14,RSI_pos,RSI_PL,Stoch_RSI_14,OBV,TSI_25_13 FROM Momentum"
 
 article_title_data = pd.read_sql_query(article_query, conn)
 main_price_data = pd.read_sql_query(main_query, conn)
@@ -157,9 +157,33 @@ def create_plot(y_data, x_data=full_dates,name='Open'):
         mode='lines',
         name=name,
     )
-
+    
     return standard_plot
 
+
+def create_annot_plot(x,y,name):
+    annot_plot = go.Scatter(
+        x=x,
+        y=y,
+        mode='markers+text',
+        name=name,
+        text=name,
+        textposition='middle right'
+    )
+
+    return annot_plot
+
+# Annotation Plots (buy/sell)
+
+buy_annotations = create_annot_plot(buy_x,buy_y,'buy')
+sell_annotations = create_annot_plot(sell_x,sell_y,'sell')
+
+buy = momentum_data[momentum_data['RSI_pos'] == 'buy']
+RSI_buy = create_annot_plot(buy['date'],buy['RSI_PL'],'buy')
+
+sell = momentum_data[momentum_data['RSI_pos'] == 'sell']
+RSI_sell = create_annot_plot(sell['date'],sell['RSI_PL'],'sell')
+print(sell['RSI_PL'])
 # Moving Average Plots
 
 main_price_plot = create_plot(main_price_data['open'])
@@ -187,6 +211,9 @@ RSI = create_plot(momentum_data['RSI_14'])
 
 RSI_with_price_plot = tools.make_subplots(rows=2, cols=1,shared_xaxes=True)
 RSI_with_price_plot.append_trace(main_price_plot, 1, 1)
+RSI_with_price_plot.append_trace(RSI_buy, 1, 1)
+RSI_with_price_plot.append_trace(RSI_sell, 1, 1)
+
 RSI_with_price_plot.append_trace(RSI, 2, 1)
 
 TSI = create_plot(momentum_data['TSI_25_13'])
@@ -194,23 +221,7 @@ TSI_with_price_plot = tools.make_subplots(rows=2, cols=1,shared_xaxes=True)
 TSI_with_price_plot.append_trace(main_price_plot, 1,1)
 TSI_with_price_plot.append_trace(TSI, 2,1)
 
-buy_annotations = go.Scatter(
-    x=buy_x,
-    y=buy_y,
-    mode='markers+text',
-    name='Buy',
-    text="buy",
-    textposition='middle right'
-)
 
-sell_annotations = go.Scatter(
-    x=sell_x,
-    y=sell_y,
-    mode='markers+text',
-    name='Sell',
-    text="sell",
-    textposition='middle right'
-)
 
 # Layouts:
 

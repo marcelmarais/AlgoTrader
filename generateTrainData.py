@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import time
 from datetime import date as dt
+import math
 
 import dateutil.relativedelta
 import pandas as pd
@@ -217,6 +218,7 @@ combined['sentiment_lag'] = combined['sentiment'].shift(-1)
 # combined['sentiment_delta'] = combined['sentiment'].pct_change()
 # combined['sentiment_delta_lag'] = combined['sentiment_delta'].shift(1)
 # print(combined.head())
+
 # Positions added here:
 
 
@@ -243,6 +245,38 @@ def deter_pos(row,
 
 combined['positions'] = deter_pos(combined['sentiment_lag'], sensitivity)
 
+RSI_pos = []
+pr_list = []
+pos_list = []
+
+def RSI_pl(rsi,price):
+    prev_pos = "hold"
+    
+    for i in zip(rsi,price):
+        
+        position = "hold"
+        pr = i[1]
+        pr = math.nan
+        rsi = i[0]
+
+        if rsi > 0.7 and prev_pos != "sell":
+            pr = i[1]
+            position = 'sell'
+            prev_pos = position
+
+        if rsi < 0.3 and prev_pos != "buy":
+            pr = i[1]
+            position = 'buy'
+            prev_pos = position
+
+        pos_list.append(position)
+        pr_list.append(pr)
+
+
+
+
+
+    
 # Moving Averages added here:
 
 
@@ -262,6 +296,11 @@ ma_data = ma_data.drop(['high','low'],axis = 1)
 
 momentum_data = Momentum.Momentum(prices.copy())
 momentum_data = momentum_data.call_all()
+
+RSI_pl(momentum_data['RSI_14'],prices['open'])
+
+momentum_data['RSI_pos'] = pos_list
+momentum_data['RSI_PL'] = pr_list
 
 c.execute('DELETE FROM ArticleTitles')
 c.execute('DELETE FROM Sentiment')
@@ -289,10 +328,10 @@ for i in momentum_data.iterrows():
     values = i[1]
     insert_momentum_values = (str(values[0]), values[1], values[2], values[3], 
                             values[4], values[5], values[6], values[7],
-                            values[8],values[9],values[10])
+                            values[8],values[9],values[10],values[11],values[12])
 
     c.execute("""INSERT INTO Momentum 
-     VALUES(NULL,?,?,?,?,?,?,?,?,?,?,?)
+     VALUES(NULL,?,?,?,?,?,?,?,?,?,?,?,?,?)
      """, insert_momentum_values)
 
 for i in title_data.iterrows():

@@ -60,6 +60,8 @@ try:
           Ultimate_Osc     REAL,
           ADX_14_14     REAL,
           MFI_14     REAL,
+          RSI_pos TEXT,
+          RSI_PL REAL,
           FOREIGN KEY(date) REFERENCES Main(date)
           )
           ''')
